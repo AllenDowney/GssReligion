@@ -33,7 +33,7 @@ def ReadFemResp2002(dct_file='2002FemResp.dct',
 
     returns: DataFrame
     """
-    usecols = ['cmbirth', 'cmintvw', 'finalwgt']
+    usecols = ['caseid', 'cmbirth', 'cmintvw', 'finalwgt', 'age_r']
     dct = thinkstats2.ReadStataDct(dct_file, encoding='iso-8859-1')
     resp = dct.ReadFixedWidth(dat_file, compression='gzip', usecols=usecols)
     CleanResp(resp)
@@ -193,7 +193,6 @@ def ProcessMales(male):
     chdob = male[chdob_cols]
     chdob.replace([9998, 9999], np.nan, inplace=True)
     
-    male['age'] = male.cmintvw - male.cmbirth
     subset = male[['religion', 'cmbirth', 'finalwgt', 'age']]
 
     for i, religion in male.religion.iteritems():
