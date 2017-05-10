@@ -2018,6 +2018,7 @@ def MakeWeibullPmf(lam, k, high, n=200):
     """
     xs = np.linspace(0, high, n)
     ps = EvalWeibullPdf(xs, lam, k)
+    ps[np.isinf(ps)] = 0
     return Pmf(dict(zip(xs, ps)))
 
 
@@ -2916,10 +2917,9 @@ def ResampleRowsWeighted(df, column='finalwgt'):
 
     returns: DataFrame
     """
-    # TODO: replace this with np.random.choice using weights
-    weights = df[column]
-    cdf = Cdf(dict(weights))
-    indices = cdf.Sample(len(weights))
+    weights = df[column].copy()
+    weights /= sum(weights)
+    indices = np.random.choice(df.index, len(df), replace=True, p=weights)
     sample = df.loc[indices]
     return sample
 

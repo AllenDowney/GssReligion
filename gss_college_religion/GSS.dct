@@ -1,0 +1,10 @@
+infile dictionary {
+    _column(1)    numeric                               YEAR   %20f  "Gss year for this respondent                       "
+   _column(21)    numeric                                ID_   %20f  "Respondent id number"
+   _column(41)    numeric                               EDUC   %20f  "Highest year of school completed"
+   _column(61)    numeric                              RELIG   %20f  "Rs religious preference"
+   _column(81)    numeric                             BALLOT   %20f  "Ballot used for interview"
+  _column(101)    numeric                            WTSSALL   %20f  "Weight variable"
+  _column(121)    numeric                                AGE   %20f  "Age of respondent"
+  _column(141)    numeric                             COHORT   %20f  "Year of birth"
+}
