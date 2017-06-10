@@ -11,57 +11,170 @@ import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
 
 import seaborn as sns
-sns.set(style='white', font_scale=1.5)
+sns.set(style='whitegrid', font_scale=1.5)
 
-decades = np.linspace(1980, 1930, 6, endpoint=True)
-colors = sns.color_palette()
-labels = ['80s', '70s', '60s', '50s', '40s', '30s']
-xlabel = 'Age group'
-ylabel = 'Fraction with no affiliation'
-axis = [13, 82, 0, 0.32]
+RED, BLUE, GREEN, PURPLE, ORANGE, YELLOW = sns.color_palette('Set1')
 
 
-def single_plot(dfs):
-    plt.figure(figsize=(8, 6))
+def create_relig_vars(df):
+    """Creates columns for religious categories.
+    
+    df: DataFrame
+    """
+    # lumping "Orthodox-Christian" and "Christian" with Protestant
+    df['prot'] = (df.relig.isin([1,10,11]))
+    df['cath'] = (df.relig==2)
+    df['none'] = (df.relig==4)
+    df['other'] = (df.relig.isin([3,5,6,7,8,9,12,13]))
+    
+    df['relig4'] = df.relig.copy()
+    df.relig4.replace([10, 11], 1, inplace=True)
+    df.relig4.replace([5,6,7,8,9,12,13], 3, inplace=True)
 
-    for i, decade in enumerate(decades):
-        series = [df.loc[decade] for df in dfs]
-        xs = series[0].index
+    varnames = ['prot', 'cath', 'none', 'other']
+    df.loc[df.relig.isnull(), varnames + ['relig4']] = np.nan
+    
 
-        rows = thinkstats2.PercentileRows(series, [5, 50, 95])
-        thinkplot.fill_between(xs, rows[0], rows[2], 
-                               color=colors[i], alpha=0.1)
-        thinkplot.plot(xs, rows[1], label=labels[i], 
-                       color=colors[i], alpha=0.8)
+def create_belief_vars(df):
+    """Creates columns for belief categories.
+    
+    df: DataFrame
+    """
+    df['nobelief'] = (df.god.isin([1, 2]))
+    df['belief'] = (df.god.isin([3, 4, 5]))
+    df['strongbelief'] = (df.god.isin([6]))
+    
+    df['belief3'] = df.god.copy()
+    df.belief3.replace([1, 2], 1, inplace=True)
+    df.belief3.replace([3, 4, 5], 2, inplace=True)
+    df.belief3.replace([6], 3, inplace=True)
 
-    thinkplot.config(axis=axis, xlabel=xlabel, ylabel=ylabel)
-    plt.gca().get_legend().set(title='Decade born');
-    thinkplot.save(root='age_religion1')
+    varnames = ['strongbelief', 'belief', 'nobelief', 'belief3']
+    df.loc[df.god.isnull(), varnames] = np.nan
+    
+
+def create_conf_vars(df):
+    """Creates columns for confidence in religion categories.
+    
+    df: DataFrame
+    """
+    df['confident'] = (df.conclerg == 1)
+    df['someconf'] = (df.conclerg == 2)
+    df['noconf'] = (df.conclerg == 3)
+
+    varnames = ['confident', 'someconf', 'noconf']
+    df.loc[df.conclerg.isnull(), varnames] = np.nan
+    
+
+def create_bible_vars(df):
+    """Creates columns for bible interpretation categories.
+    
+    df: DataFrame
+    """
+    df['literal'] = (df.bible == 1)
+    df['inspired'] = (df.bible == 2)
+    df['legends'] = (df.bible == 3)
+
+    varnames = ['inspired', 'literal', 'legends']
+    df.loc[df.bible.isnull(), varnames] = np.nan
+    
+
+def center_factors(df):
+    """Center factors around their means.
+    
+    Add centered factors for the model.
+    
+    df: DataFrame
+    """
+    df['ones'] = np.ones_like(df.cohort)
+    df['c'] = df.cohort - 1966
+    df['c2'] = df.c**2
+    df['a'] = df.age - 47
+    df['a2'] = df.a**2
+    df['ac'] = df.a * df.c
 
 
-def multi_plot(dfs):
-    plt.figure(figsize=(8, 6))
+def plot_relig(grouped, varnames):
+    """Plot one line for each religious group.
+    
+    grouped: GroupBy object with one-hots for each religious group
+    """
+    colors = [ORANGE, GREEN, RED, BLUE]
+    labels = ['Protestant', 'Catholic', 'None', 'Other']
+    series_seq = make_series_seq(grouped, varnames)
+    plot_series_seq(series_seq, colors, labels)
 
-    xlabels = ['', '', '', xlabel, xlabel, xlabel]
-    ylabels = [ylabel, '', '', ylabel, '', '']
 
-    thinkplot.figure(figsize=(11, 8))
-    thinkplot.preplot(num=6, rows=2, cols=3)
+def read_gss():
+    """Read and clean GSS data.
 
-    for i, decade in enumerate(decades):
-        series = [df.loc[decade] for df in dfs]
-        xs = series[0].index
-        rows = thinkstats2.PercentileRows(series, [5, 50, 95])
+    returns: DataFrame
+    """
+    gss = utils.ReadGss('gss_religion_data')
 
-        thinkplot.subplot(i+1)
-        thinkplot.fill_between(xs, rows[0], rows[2], 
-                               color=colors[i], alpha=0.1)
-        thinkplot.plot(xs, rows[1], label=labels[i], 
-                       color=colors[i], alpha=0.8)
+    # replace special values with NaN
+    gss.age.replace([98, 99], np.nan, inplace=True)
+    gss.cohort.replace([9999], np.nan, inplace=True)
+    gss.relig.replace([98, 99], np.nan, inplace=True)
+    gss.bible.replace([4, 8, 9, 0], np.nan, inplace=True)
+    gss.conclerg.replace([8, 9, 0], np.nan, inplace=True)
+    gss.god.replace([8, 9, 0], np.nan, inplace=True)
 
-        thinkplot.config(axis=axis, xlabel=xlabels[i], ylabel=ylabels[i])
+    # remove rows with missing data
+    gss.dropna(subset=['age', 'cohort', 'relig'], inplace=True)
 
-    thinkplot.save(root='age_religion2')
+    # compute age groups and cohorts
+    #gss['age_group'] = utils.RoundIntoBins(gss, 'age', 5, 90)
+    #gss['decade'] = utils.RoundIntoBins(gss, 'cohort', 10)
+    gss['cohort5'] = utils.RoundIntoBins(gss, 'cohort', 5, low=4) + 2.5
+
+    # recode variables
+    create_relig_vars(gss)
+    create_belief_vars(gss)
+    create_conf_vars(gss)
+    create_bible_vars(gss)
+
+    # compute centered factors for regression
+    center_factors(gss)
+    
+    return gss
+
+
+def make_series_df(grouped, varnames):
+    """Compute the percentage in each category.
+    
+    grouped: GroupBy object with one-hots for each category
+    varnames: list of string column names
+    
+    returns: DataFrame
+    """
+    df = pd.DataFrame(columns=varnames)
+    for var in varnames:
+        df[var] = grouped[var].mean() * 100
+    return df
+
+
+def plot_series_seq(series_seq, colors, labels):
+    """Plots Series objects.
+    
+    series_seq: list of Series
+    colors: list of string colors
+    labels: list of string labels
+    """
+    for series, color, label in zip(series_seq, colors, labels):
+        thinkplot.plot(series, color=color, label=label)
+
+
+def plot_relig(grouped):
+    """Plot one line for each religious group.
+    
+    grouped: GroupBy object with one-hots for each religious group
+    """
+    varnames = ['prot', 'cath', 'none', 'other']
+    colors = [ORANGE, GREEN, RED, BLUE]
+    labels = ['Protestant', 'Catholic', 'None', 'Other']
+    series_seq = make_series_seq(grouped, varnames)
+    plot_series_seq(series_seq, colors, labels)
 
 
 def run(df):
@@ -71,36 +184,18 @@ def run(df):
     """
     sample = utils.ResampleByYear(df)
 
-    grouped = sample.groupby(['decade', 'age_group'])
-    counts = grouped.none.count().unstack()
-
-    percent_none = grouped.none.mean().unstack()
-    percent_none[counts < 50] = np.nan
-
-    return percent_none
 
 
-def read_gss():
-    gss = utils.ReadGss('gss_college_religion')
-
-    # remove rows with missing data
-    gss.age.replace([98, 99], np.nan, inplace=True)
-    gss.cohort.replace([9999], np.nan, inplace=True)
-    gss.relig.replace([98, 99], np.nan, inplace=True)
-    print(sum(gss.age.isnull()))
-
-    gss.dropna(subset=['age', 'cohort', 'relig'], inplace=True)
-
-    # compute age groups and decade of birth
-    gss['age_group'] = utils.RoundIntoBins(gss, 'age', 5, 90)
-    gss['decade'] = utils.RoundIntoBins(gss, 'cohort', 10)
-    gss['none'] = (gss.relig == 4)
-
-    return gss
 
 
 def main():
     gss = read_gss()
+    sample = utils.ResampleByYear(gss)
+    grouped_year = sample.groupby(['year'])
+    plot_relig(grouped_year)
+    thinkplot.config(xlabel='Year of survey', ylabel='Percent')
+    thinkplot.show()
+    return
 
     # run the resamples
     dfs = [run(gss) for _ in range(101)]
