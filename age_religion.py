@@ -21,9 +21,11 @@ def create_relig_vars(df):
     
     df: DataFrame
     """
-    # lumping "Orthodox-Christian" and "Christian" with Protestant
-    df['prot'] = (df.relig.isin([1,10,11]))
-    df['cath'] = (df.relig==2)
+    # lumping "Christian" with Protestant
+    df['prot'] = (df.relig.isin([1,11]))
+
+    # lumping "Orthodox-Christian" with Catholic
+    df['cath'] = (df.relig.isin([2,10]))
     df['none'] = (df.relig==4)
     df['other'] = (df.relig.isin([3,5,6,7,8,9,12,13]))
     
